@@ -3,9 +3,9 @@ var { Client } = require("pg");
 var router = express.Router();
 
 router.post("/search", async function (req, res, next) {
-  const phrase = req.body.phrase;
+  const {phrase, pageSize, page} = req.body;
   const timeBegin = new Date();
-  const result = await searchPhrase(phrase);
+  const result = await searchPhrase(phrase,pageSize, page);
   const timeEnd = new Date();
   res.setHeader("Content-Type", "application/json");
   res.send(
@@ -17,8 +17,14 @@ router.post("/search", async function (req, res, next) {
     })
   );
 });
-
-async function searchPhrase(phrase) {
+/**
+ * 
+ * @param {*} phrase 
+ * @param {*} pageSize 
+ * @param {*} page 
+ * @returns 
+ */
+async function searchPhrase(phrase,pageSize, page) {
   const client = new Client({
     user: process.env.USER,
     host: process.env.HOST,
@@ -32,11 +38,19 @@ async function searchPhrase(phrase) {
   const arr_word = phrase.split(" ").filter((n) => n);
 
   const result = await client.query(query_sql, [
-    phraseto_tsquery + "|" + arr_word.join("|"),
+    phraseto_tsquery + "|" + arr_word.join("|")
+	, pageSize
+	, page
   ]);
   await client.end();
   return result;
 }
+/**
+ * 
+ * @param {*} client 
+ * @param {*} phrase 
+ * @returns 
+ */
 async function phrasetoTsQuery(client, phrase) {
   const result = await client.query("select phraseto_tsquery($1)", [phrase]);
   return result.rows[0].phraseto_tsquery;
@@ -60,13 +74,14 @@ select
 			||setWeight(history_comment_vector ,'C') ,
 			to_tsquery($1)
 		) rank,*
-
 		from "MyRequestFullTextSearch"
 		where 
 		title_vector @@ to_tsquery($1)
 		or "category_vector" @@ to_tsquery($1)
 		or description_vector @@ to_tsquery($1)
 		or history_comment_vector @@ to_tsquery($1)
+		limit $2
+		offset $3
 	)fulltextTbl
 	left join 
 	(select seq, title,"creatorId","categoryId",description from "MyRequest") "mRequest"
