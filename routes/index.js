@@ -36,10 +36,13 @@ async function searchPhrase(phrase,pageSize, page) {
 
   await client.connect();
   const phraseto_tsquery = await phrasetoTsQuery(client, phrase);
+  //còn bug tại đây
   const arr_word = phrase.split(" ").filter((n) => n);
-
+  const q = phraseto_tsquery ;
+  //+ "|" + arr_word.join("|").toString();
+  console.log(q);
   const result = await client.query(query_sql, [
-    phraseto_tsquery + "|" + arr_word.join("|")
+    q
 	, pageSize
 	, page
   ]);
