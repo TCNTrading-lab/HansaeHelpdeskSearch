@@ -1,9 +1,10 @@
 var express = require("express");
 var { Client } = require("pg");
 var router = express.Router();
-
+//helpdesk.hansae.com qqq2212--- sgs èh  adga45`11 ERP Er64tègsdftse45or ----- elasticsearch zip",
 router.post("/search", async function (req, res, next) {
   const {phrase, pageSize, page} = req.body;
+  //kiem tra page page size là number, trước khi xữ lý tiếp theo
   const timeBegin = new Date();
   const result = await searchPhrase(phrase,pageSize, page);
   const timeEnd = new Date();
