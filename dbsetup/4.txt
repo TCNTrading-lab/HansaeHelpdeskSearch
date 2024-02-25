@@ -1,0 +1,56 @@
+-- FUNCTION: public.func_create_vector_history()
+
+-- DROP FUNCTION IF EXISTS public.func_create_vector_history();
+
+CREATE OR REPLACE FUNCTION public.func_create_vector_history()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+	if NEW."comment" is NOT NULL and NEW."comment" <> '' then
+		RAISE NOTICE 'NEW.COMMENT';
+		update "MyRequestFullTextSearch"
+		set
+		--Join history	
+		history_comment_vector = to_tsvector(		
+			(select string_agg(comment, '. ') comment_history  from (
+			select 
+				replace(striphtml(comment),':','') comment,
+			"RequestSeq" from "History" 
+			where comment is not null and comment <> ''
+			and "RequestSeq" = NEW."RequestSeq"
+			)tbl
+			group by "RequestSeq")
+		)
+		,history_comment = (select string_agg(comment, '. ') comment_history  from (
+			select 
+			'['||(select username  from "User" where id ="History".owner_id ) || '/' ||replace(striphtml(comment),':','') || ']' comment,
+			"RequestSeq" from "History" 
+			where comment is not null and comment <> ''
+			and "RequestSeq" = NEW."RequestSeq"
+			)tbl
+			group by "RequestSeq")
+		where "MyRequestFullTextSearch".seq = NEW."RequestSeq";
+	end if;	
+    RETURN NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public.func_create_vector_history()
+    OWNER TO admin;
+
+
+----
+
+
+-- Trigger: trigger_create_vector_history
+
+-- DROP TRIGGER IF EXISTS trigger_create_vector_history ON public."History";
+
+CREATE OR REPLACE TRIGGER trigger_create_vector_history
+    AFTER INSERT
+    ON public."History"
+    FOR EACH ROW
+    EXECUTE FUNCTION public.func_create_vector_history();

@@ -1,0 +1,40 @@
+-- FUNCTION: public.func_create_vector_myrequest()
+
+-- DROP FUNCTION IF EXISTS public.func_create_vector_myrequest();
+
+CREATE OR REPLACE FUNCTION public.func_create_vector_myrequest()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+    INSERT INTO "MyRequestFullTextSearch" (seq, title_vector,description_vector,category_vector,history_comment_vector)
+    VALUES (NEW.seq, 
+			to_tsvector(replace(NEW.title,':','')),
+			to_tsvector(replace(striphtml(NEW.description),':','')), 
+			to_tsvector(
+				replace(
+					(select "name" from "Category" where NEW."categoryId"="Category".id)
+				,':','')
+			),
+		   	NULL);
+			
+    RETURN NULL;
+END;
+$BODY$;
+
+
+ALTER FUNCTION public.func_create_vector_myrequest()
+    OWNER TO admin;
+----
+
+-- Trigger: trigger_create_vector_myrequest
+
+-- DROP TRIGGER IF EXISTS trigger_create_vector_myrequest ON public."MyRequest";
+
+CREATE OR REPLACE TRIGGER trigger_create_vector_myrequest
+    AFTER INSERT
+    ON public."MyRequest"
+    FOR EACH ROW
+    EXECUTE FUNCTION public.func_create_vector_myrequest();

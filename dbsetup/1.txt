@@ -1,0 +1,31 @@
+--
+--tao function tach HTML
+--B1: Chay tren ubuntu
+--sudo apt-get install libhtml-strip-perl
+SELECT * FROM pg_language;
+
+CREATE EXTENSION plperl;
+CREATE LANGUAGE plperlu;
+----
+
+CREATE OR REPLACE FUNCTION public.striphtml(
+	html text)
+    RETURNS text
+    LANGUAGE 'plperlu'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+use strict; use warnings; use 5.10.1;
+use HTML::Strip;
+
+my $hs = HTML::Strip->new(decode_entities => 1);
+my $stripped = $hs->parse($_[0]);
+$hs->eof;
+return $stripped;
+$BODY$;
+
+ALTER FUNCTION public.striphtml(text)
+    OWNER TO admin;
+
+----
+
