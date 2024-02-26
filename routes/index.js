@@ -1,9 +1,12 @@
 const { isNumber } = require("class-validator");
 var express = require("express");
-var { Client } = require("pg");
+var { Pool } = require("pg");
 var createError = require("http-errors");
 var router = express.Router();
-router.post("/search", async function (req, res, next) {
+router.get("/hi",function (req, res, next){
+	res.send("hello");
+});
+router.post("/", async function (req, res, next) {
   const { phrase, pageSize, page } = req.body;
   if (phrase==null || pageSize == null || page==null){
 	next(createError(500,new Error("An error occurred at model input (phrase,page,pageSize)")));
@@ -33,26 +36,18 @@ router.post("/search", async function (req, res, next) {
  * @returns
  */
 async function searchPhrase(phrase, pageSize, page) {
-  const client = new Client({
-    user: process.env.USER,
-    host: process.env.HOST,
-    database: process.env.DATABASE,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
-  });
-
-  await client.connect();
+	console.log(process.env.CONNECTION_STRING);
+  const pool = new Pool({connectionString: process.env.CONNECTION_STRING,});  
   //const phraseto_tsquery = await phrasetoTsQuery(client, phrase);
-
   const arr_word = phrase.split(" ").filter((n) => n);
   const qWord = arr_word.join("|").toString();
-  const result = await client.query(query_sql, [
+  const result = await pool.query(query_sql, [
     qWord,
     phrase,
     pageSize,
     page * pageSize,
   ]);
-  await client.end();
+  await pool.end();
   return result;
 }
 /**
