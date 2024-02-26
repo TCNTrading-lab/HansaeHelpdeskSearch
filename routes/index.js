@@ -1,31 +1,38 @@
+const { isNumber } = require("class-validator");
 var express = require("express");
 var { Client } = require("pg");
+var createError = require("http-errors");
 var router = express.Router();
-//helpdesk.hansae.com qqq2212--- sgs èh  adga45`11 ERP Er64tègsdftse45or ----- elasticsearch zip",
 router.post("/search", async function (req, res, next) {
-  const {phrase, pageSize, page} = req.body;
-  //kiem tra page page size là number, trước khi xữ lý tiếp theo
-  const timeBegin = new Date();
-  const result = await searchPhrase(phrase,pageSize, page);
-  const timeEnd = new Date();
-  res.setHeader("Content-Type", "application/json");
-  res.send(
-    JSON.stringify({
-      phrase: phrase,
-	  time:(timeEnd-timeBegin)/1000,
-      count: (await result).rows.length,
-      data: result.rows,
-    })
-  );
+  const { phrase, pageSize, page } = req.body;
+  if (phrase==null || pageSize == null || page==null){
+	next(createError(500,new Error("An error occurred at model input (phrase,page,pageSize)")));
+  }
+  else if (!(isNumber(pageSize) && isNumber(page))) {
+	next(createError(500,new Error("An error occurred at page or pageSize")));
+  } else {
+    const timeBegin = new Date();
+    const result = await searchPhrase(phrase, pageSize, page);
+    const timeEnd = new Date();
+    res.setHeader("Content-Type", "application/json");
+    res.send(
+      JSON.stringify({
+        phrase: phrase,
+        time: (timeEnd - timeBegin) / 1000,
+        count: (await result).rows.length,
+        data: result.rows,
+      })
+    );
+  }
 });
 /**
- * 
- * @param {*} phrase 
- * @param {*} pageSize 
- * @param {*} page 
- * @returns 
+ *
+ * @param {*} phrase
+ * @param {*} pageSize
+ * @param {*} page
+ * @returns
  */
-async function searchPhrase(phrase,pageSize, page) {
+async function searchPhrase(phrase, pageSize, page) {
   const client = new Client({
     user: process.env.USER,
     host: process.env.HOST,
@@ -35,25 +42,24 @@ async function searchPhrase(phrase,pageSize, page) {
   });
 
   await client.connect();
-  const phraseto_tsquery = await phrasetoTsQuery(client, phrase);
-  //còn bug tại đây
+  //const phraseto_tsquery = await phrasetoTsQuery(client, phrase);
+
   const arr_word = phrase.split(" ").filter((n) => n);
-  const q = phraseto_tsquery ;
-  //+ "|" + arr_word.join("|").toString();
-  console.log(q);
+  const qWord = arr_word.join("|").toString();
   const result = await client.query(query_sql, [
-    q
-	, pageSize
-	, page
+    qWord,
+    phrase,
+    pageSize,
+    page * pageSize,
   ]);
   await client.end();
   return result;
 }
 /**
- * 
- * @param {*} client 
- * @param {*} phrase 
- * @returns 
+ *
+ * @param {*} client
+ * @param {*} phrase
+ * @returns
  */
 async function phrasetoTsQuery(client, phrase) {
   const result = await client.query("select phraseto_tsquery($1)", [phrase]);
@@ -76,16 +82,16 @@ select
 			||setWeight(category_vector ,'C') 
 			||setWeight(description_vector ,'B') 
 			||setWeight(history_comment_vector ,'C') ,
-			to_tsquery($1)
+			to_tsquery($1) || phraseto_tsquery($2)
 		) rank,*
 		from "MyRequestFullTextSearch"
 		where 
-		title_vector @@ to_tsquery($1)
-		or "category_vector" @@ to_tsquery($1)
-		or description_vector @@ to_tsquery($1)
-		or history_comment_vector @@ to_tsquery($1)
-		limit $2
-		offset $3
+		title_vector @@ (to_tsquery($1) || phraseto_tsquery($2))
+		or "category_vector" @@ (to_tsquery($1) || phraseto_tsquery($2))
+		or description_vector @@ (to_tsquery($1) || phraseto_tsquery($2))
+		or history_comment_vector @@ (to_tsquery($1) || phraseto_tsquery($2))
+		limit $3
+		offset $4
 	)fulltextTbl
 	left join 
 	(select seq, title,"creatorId","categoryId",description from "MyRequest") "mRequest"
