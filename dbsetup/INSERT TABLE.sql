@@ -1,4 +1,3 @@
---Tạo dữ liệu search ban đầu
 INSERT INTO "MyRequestFullTextSearch"
 select *
 from (
@@ -19,7 +18,7 @@ left join
 select "RequestSeq", string_agg(comment, ' ') history_comment_vector, string_agg(history_comment, ' ') history_comment  from (
 select 
 	replace(striphtml(comment),':','') comment
-	,'['||(select username  from "User" where id ="History".owner_id ) || '/' ||replace(striphtml(comment),':','') || ']' history_comment
+	,''||(select username  from "User" where id ="History".owner_id ) || '/ ' ||replace(striphtml(comment),':','') || ';' history_comment
 	,"RequestSeq"
 	from "History" where comment is not null and comment <> ''
 )tbl

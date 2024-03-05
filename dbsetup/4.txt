@@ -26,7 +26,7 @@ BEGIN
 		)
 		,history_comment = (select string_agg(comment, '. ') comment_history  from (
 			select 
-			'['||(select username  from "User" where id ="History".owner_id ) || '/' ||replace(striphtml(comment),':','') || ']' comment,
+			''||(select username  from "User" where id ="History".owner_id ) || '/ ' ||replace(striphtml(comment),':','') || ';.' comment,
 			"RequestSeq" from "History" 
 			where comment is not null and comment <> ''
 			and "RequestSeq" = NEW."RequestSeq"
